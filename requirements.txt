@@ -1,27 +1,57 @@
 # Substrate Dependencies
 
-## Core Dependencies
-sentence-transformers>=2.2.2
-chromadb>=0.4.0
+## Security (HIPAA-grade encryption and authentication)
+cryptography>=41.0.0        # AES-256-GCM, RSA-4096, secure encryption
+argon2-cffi>=23.1.0        # Argon2id password hashing
+pyotp>=2.9.0               # TOTP for 2FA
+webauthn>=2.0.0            # Passkey/FIDO2 authentication
+pynacl>=1.5.0              # Additional cryptographic primitives
+
+## Core AI/ML
+sentence-transformers>=2.2.2  # Semantic embeddings
+chromadb>=0.4.0               # Vector database
+torch>=2.0.0                  # PyTorch (required by transformers)
+transformers>=4.30.0          # Transformer models
+
+## Web API
 fastapi>=0.104.0
 uvicorn>=0.24.0
 pydantic>=2.0.0
 python-multipart>=0.0.6
+websockets>=12.0            # Real-time communication
 
 ## Database
 sqlalchemy>=2.0.0
+psycopg2-binary>=2.9.0     # PostgreSQL (production)
+alembic>=1.12.0            # Database migrations
 
 ## LLM Integration
 # Ollama: Install separately (https://ollama.ai)
 # Or use via HTTP API
+ollama>=0.1.0              # Python client for Ollama
+
+## Security Utilities
+python-jose[cryptography]>=3.3.0  # JWT tokens
+passlib[bcrypt]>=1.7.4            # Password utilities
+python-multipart>=0.0.6           # File uploads
 
 ## Utilities
 python-dotenv>=1.0.0
 aiofiles>=23.0.0
+httpx>=0.25.0              # HTTP client
+redis>=5.0.0               # Caching and sessions
 
-## Optional: For web interface
-# react (separate npm project)
+## Monitoring & Logging
+structlog>=23.2.0          # Structured logging
+prometheus-client>=0.19.0  # Metrics
 
 ## Development
 pytest>=7.4.0
 pytest-asyncio>=0.21.0
+pytest-cov>=4.1.0          # Code coverage
+black>=23.12.0             # Code formatting
+mypy>=1.7.0                # Type checking
+ruff>=0.1.0                # Linting
+
+## Optional: For web interface
+# Frontend is separate (HTML/CSS/JS or React)
