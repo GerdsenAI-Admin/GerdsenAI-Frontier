@@ -419,62 +419,129 @@
             const matchesDiv = document.getElementById('matches');
             const matchesList = document.getElementById('matches-list');
             matchesDiv.style.display = 'block';
-            matchesList.innerHTML = '<div class="loading"><div class="spinner"></div><p>Finding semantic matches...</p></div>';
+            matchesList.innerHTML = '<div class="loading"><div class="spinner"></div><p>Finding semantic matches with AI...</p></div>';
 
-            // TODO: Implement actual API call
-            // For now, show mock data
-            setTimeout(() => {
-                const mockMatches = [
-                    {
-                        capability: "Multi-Sensor Integration & Calibration",
-                        description: "Expert in LiDAR, camera, IMU integration with calibration procedures",
-                        match_score: 0.89,
-                        confidence: 0.85,
-                        complementarity: 0.78,
-                        user_id: "user_hardware_expert",
-                        proficiency: 0.92,
-                        explanation: "Semantic match: Your 'sensor synchronization' need strongly matches their 'multi-sensor integration' expertise (cosine similarity: 0.91)"
+            try {
+                // Make actual API call
+                const response = await fetch(`${API_URL}/match`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
                     },
-                    {
-                        capability: "Sensor Fusion Algorithms",
-                        description: "Kalman filtering, particle filters, probabilistic state estimation",
-                        match_score: 0.82,
-                        confidence: 0.80,
-                        complementarity: 0.85,
-                        user_id: "user_ai_researcher",
-                        proficiency: 0.90,
-                        explanation: "Related expertise: Sensor fusion algorithms can help with synchronization issues"
-                    }
-                ];
+                    body: JSON.stringify({
+                        user_id: userId,
+                        need_name: name,
+                        need_description: description,
+                        need_domain: domain,
+                        need_tags: tags,
+                        max_results: 10
+                    })
+                });
 
+                if (!response.ok) {
+                    throw new Error(`API error: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+
+                if (data.matches_found === 0) {
+                    matchesList.innerHTML = '<div class="loading"><p>No matches found yet. Try adding more profiles to the network!</p></div>';
+                    return;
+                }
+
+                // Display real matches
                 matchesList.innerHTML = '';
-                mockMatches.forEach(match => {
+                data.matches.forEach(match => {
+                    // Extract explanation summary
+                    const explanationSummary = match.explanation?.summary || 'AI-powered semantic matching';
+
                     const matchCard = `
                         <div class="match-card">
-                            <div class="match-score">Match: ${(match.match_score * 100).toFixed(0)}%</div>
-                            <div class="match-capability">${match.capability}</div>
-                            <div class="match-description">${match.description}</div>
+                            <div class="match-score">Match: ${(match.scores.match_score * 100).toFixed(0)}%</div>
+                            <div class="match-capability">${match.capability.name}</div>
+                            <div class="match-description">${match.capability.description}</div>
                             <div class="match-details">
-                                <span>👤 ${match.user_id}</span>
-                                <span>💪 Proficiency: ${(match.proficiency * 100).toFixed(0)}%</span>
-                                <span>🤝 Complementarity: ${(match.complementarity * 100).toFixed(0)}%</span>
+                                <span>👤 ${match.capability_user_id}</span>
+                                <span>💪 Proficiency: ${(match.capability.proficiency * 100).toFixed(0)}%</span>
+                                <span>🤝 Complementarity: ${(match.scores.complementarity * 100).toFixed(0)}%</span>
+                                <span>🎯 Confidence: ${(match.scores.confidence * 100).toFixed(0)}%</span>
                             </div>
                             <div class="explanation">
                                 <h4>🧠 Why this match?</h4>
-                                <p>${match.explanation}</p>
+                                <p>${explanationSummary}</p>
+                                ${match.evidence.length > 0 ? '<p><strong>Evidence:</strong> ' + match.evidence.join(', ') + '</p>' : ''}
+                                ${match.uncertainty_factors.length > 0 ? '<p><strong>⚠ Uncertainty:</strong> ' + match.uncertainty_factors.join(', ') + '</p>' : ''}
                             </div>
                         </div>
                     `;
                     matchesList.innerHTML += matchCard;
                 });
-            }, 1500);
+
+            } catch (error) {
+                matchesList.innerHTML = `
+                    <div class="loading">
+                        <p style="color: red;">Error: ${error.message}</p>
+                        <p>Make sure the API server is running at ${API_URL}</p>
+                    </div>
+                `;
+                console.error('Matching error:', error);
+            }
         }
 
         async function createProfile(event) {
             event.preventDefault();
 
-            // Show success (simplified for demo)
-            alert('Profile created! In production, this would save to the backend.');
+            const userId = document.getElementById('profile_user_id').value;
+            const location = document.getElementById('profile_location').value;
+            const timezone = document.getElementById('profile_timezone').value;
+            const capabilitiesText = document.getElementById('profile_capabilities').value;
+
+            // Parse capabilities from text (simple format: "Name - Description" per line)
+            const capabilityLines = capabilitiesText.split('\n').filter(line => line.trim());
+            const capabilities = capabilityLines.map(line => {
+                const parts = line.split('-').map(p => p.trim());
+                const name = parts[0] || 'Unnamed capability';
+                const description = parts[1] || name;
+
+                return {
+                    type: 'skill',
+                    name: name,
+                    description: description,
+                    proficiency: 0.8,  // Default
+                    tags: [],
+                    privacy_level: 'network'
+                };
+            });
+
+            try {
+                const response = await fetch(`${API_URL}/profiles`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        user_id: userId,
+                        capabilities: capabilities,
+                        location_region: location,
+                        timezone: timezone,
+                        domains: ['robotics']  // Default for now
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API error: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                alert(`✓ Profile created successfully!\n\nUser ID: ${data.user_id}\nCapabilities: ${data.capabilities_count}\n\nYou can now be matched with others!`);
+
+                // Clear form
+                event.target.reset();
+
+            } catch (error) {
+                alert(`Error creating profile: ${error.message}\n\nMake sure the API server is running at ${API_URL}`);
+                console.error('Profile creation error:', error);
+            }
         }
 
         async function loadStats() {
@@ -483,13 +550,26 @@
             document.getElementById('stat-success').textContent = '...';
             document.getElementById('stat-outcomes').textContent = '...';
 
-            // TODO: Implement actual API call
-            // For now, show mock data
-            setTimeout(() => {
-                document.getElementById('stat-matches').textContent = '247';
-                document.getElementById('stat-success').textContent = '73%';
-                document.getElementById('stat-outcomes').textContent = '89';
-            }, 500);
+            try {
+                const response = await fetch(`${API_URL}/stats`);
+
+                if (!response.ok) {
+                    throw new Error(`API error: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+
+                document.getElementById('stat-matches').textContent = data.total_matches || 0;
+                document.getElementById('stat-success').textContent =
+                    (data.success_rate * 100).toFixed(0) + '%';
+                document.getElementById('stat-outcomes').textContent = data.total_outcomes || 0;
+
+            } catch (error) {
+                document.getElementById('stat-matches').textContent = 'Error';
+                document.getElementById('stat-success').textContent = 'Error';
+                document.getElementById('stat-outcomes').textContent = 'Error';
+                console.error('Stats loading error:', error);
+            }
         }
 
         // Load stats on page load if on stats tab

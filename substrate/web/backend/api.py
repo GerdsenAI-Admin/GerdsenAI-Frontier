@@ -74,8 +74,14 @@ class NeedCreate(BaseModel):
 
 
 class MatchRequest(BaseModel):
-    need_id: str
     user_id: str
+    need_name: str
+    need_description: str
+    need_type: str = "skill"
+    need_domain: str
+    need_tags: List[str] = []
+    urgency: float = Field(ge=0.0, le=1.0, default=0.5)
+    importance: float = Field(ge=0.0, le=1.0, default=0.5)
     max_results: int = 10
 
 
@@ -224,20 +230,83 @@ async def create_need(need_data: NeedCreate):
 async def find_matches(match_request: MatchRequest):
     """Find matches for a need"""
 
-    # Load user profile
+    # Load or create user profile
     if match_request.user_id not in profile_cache:
         profile = db.load_user_profile(match_request.user_id)
         if not profile:
-            raise HTTPException(status_code=404, detail="User profile not found")
+            # Create a minimal profile for matching
+            profile = UserProfile(
+                user_id=match_request.user_id,
+                capabilities=[],
+                domains={ProblemDomain(match_request.need_domain)},
+                location_region=None,
+                timezone=None
+            )
         profile_cache[match_request.user_id] = profile
     else:
         profile = profile_cache[match_request.user_id]
 
-    # Load need (simplified - in production would query from DB)
-    # For now, assume need is passed or created
-    # This is a simplified endpoint - would need need_id in request
+    # Create need from request
+    need = Need(
+        type=CapabilityType(match_request.need_type),
+        name=match_request.need_name,
+        description=match_request.need_description,
+        urgency=match_request.urgency,
+        importance=match_request.importance,
+        domain=ProblemDomain(match_request.need_domain),
+        tags=set(match_request.need_tags),
+        constraints={}
+    )
 
-    raise HTTPException(status_code=501, detail="Need full implementation with need loading")
+    # Save need to database
+    db.save_need(need, match_request.user_id)
+
+    # Find matches
+    matches = matcher.find_matches(need, profile, max_results=match_request.max_results)
+
+    # Save matches to database
+    for match in matches:
+        db.save_match(match)
+
+    # Generate detailed explanations
+    matches_with_explanations = []
+    for match in matches:
+        # Generate full explanation
+        explanation = transparency.explain_match(
+            match,
+            include_reasoning=True,
+            include_alternatives=True,
+            include_verification=True
+        )
+
+        matches_with_explanations.append({
+            "match_id": match.match_id,
+            "capability": {
+                "capability_id": match.capability.capability_id,
+                "name": match.capability.name,
+                "description": match.capability.description,
+                "proficiency": match.capability.proficiency,
+                "tags": list(match.capability.tags)
+            },
+            "capability_user_id": match.capability_user_id,
+            "scores": {
+                "match_score": match.match_score,
+                "confidence": match.confidence,
+                "complementarity": match.complementarity_score,
+                "feasibility": match.feasibility_score
+            },
+            "explanation": explanation,
+            "evidence": match.evidence,
+            "uncertainty_factors": match.uncertainty_factors
+        })
+
+    return {
+        "status": "success",
+        "need_id": need.need_id,
+        "matches_found": len(matches),
+        "matches": matches_with_explanations,
+        "message": "Matches found with complete transparency"
+    }
 
 
 @app.post("/match/{match_id}/accept")
