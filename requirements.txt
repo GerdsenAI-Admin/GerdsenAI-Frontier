@@ -1,0 +1,27 @@
+# Substrate Dependencies
+
+## Core Dependencies
+sentence-transformers>=2.2.2
+chromadb>=0.4.0
+fastapi>=0.104.0
+uvicorn>=0.24.0
+pydantic>=2.0.0
+python-multipart>=0.0.6
+
+## Database
+sqlalchemy>=2.0.0
+
+## LLM Integration
+# Ollama: Install separately (https://ollama.ai)
+# Or use via HTTP API
+
+## Utilities
+python-dotenv>=1.0.0
+aiofiles>=23.0.0
+
+## Optional: For web interface
+# react (separate npm project)
+
+## Development
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
